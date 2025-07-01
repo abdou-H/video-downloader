@@ -12,32 +12,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-let clients = [];
-
-app.get("/progress", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  clients.push(res);
-
-  req.on("close", () => {
-    clients = clients.filter(client => client !== res);
-  });
-});
-
-function sendProgress(progress) {
-  clients.forEach(res => {
-    res.write(`data: ${progress}\n\n`);
-  });
-}
-
 app.post("/api/download", async (req, res) => {
   const { url, format } = req.body;
   if (!url || !format) return res.status(400).json({ error: "missing data" });
 
   const filename = `media_${Date.now()}.${format}`;
-  const filePath = path.join(os.tmpdir(), filename); // safe temporary path
+  const filePath = path.join(os.tmpdir(), filename);
 
   const options = {
     output: filePath,
@@ -59,6 +39,6 @@ app.post("/api/download", async (req, res) => {
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
