@@ -1,11 +1,12 @@
 const express = require("express");
 const cors = require("cors");
-const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
+const youtubedl = require("yt-dlp-exec");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -35,32 +36,29 @@ app.post("/api/download", async (req, res) => {
   const { url, format } = req.body;
   if (!url || !format) return res.status(400).json({ error: "missing data" });
 
-  const output = `media_${Date.now()}.${format}`;
-  const filePath = path.join(__dirname, output);
+  const filename = `media_${Date.now()}.${format}`;
+  const filePath = path.join(os.tmpdir(), filename); // safe temp path
 
-  const args = format === "mp3" || format === "m4a"
-    ? ["-f", "bestaudio", "--extract-audio", "--audio-format", format, "-o", output, url]
-    : ["-f", "best", "--merge-output-format", format, "-o", output, url];
+  const options = {
+    output: filePath,
+    format: format === "mp3" || format === "m4a" ? "bestaudio" : "best",
+    extractAudio: format === "mp3" || format === "m4a",
+    audioFormat: format === "mp3" || format === "m4a" ? format : undefined,
+    mergeOutputFormat: format !== "mp3" && format !== "m4a" ? format : undefined,
+  };
 
-  const yt = spawn("yt-dlp", args);
-
-  yt.stdout.on("data", (data) => {
-    const output = data.toString();
-    const match = output.match(/download\s+(\d+\.\d+)%/);
-    if (match) sendProgress(match[1]);
-  });
-
-  yt.stderr.on("data", (data) => {
-    console.error("stderr:", data.toString());
-  });
-
-  yt.on("close", (code) => {
-    if (code !== 0) return res.status(500).json({ error: "Download failed" });
-    res.download(filePath, output, (err) => {
+  try {
+    await youtubedl(url, options);
+    res.download(filePath, filename, err => {
       if (err) console.error(err);
       fs.unlink(filePath, () => {});
     });
-  });
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ error: "Download failed" });
+  }
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+);
