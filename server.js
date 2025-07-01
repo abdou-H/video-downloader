@@ -37,7 +37,7 @@ app.post("/api/download", async (req, res) => {
   if (!url || !format) return res.status(400).json({ error: "missing data" });
 
   const filename = `media_${Date.now()}.${format}`;
-  const filePath = path.join(os.tmpdir(), filename); // safe temp path
+  const filePath = path.join(os.tmpdir(), filename); // safe temporary path
 
   const options = {
     output: filePath,
