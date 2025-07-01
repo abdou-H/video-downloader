@@ -14,7 +14,10 @@ app.use(express.static("public"));
 
 app.post("/api/download", async (req, res) => {
   const { url, format } = req.body;
-  if (!url || !format) return res.status(400).json({ error: "missing data" });
+
+  if (!url || !format) {
+    return res.status(400).json({ error: "Missing URL or format." });
+  }
 
   const filename = `media_${Date.now()}.${format}`;
   const filePath = path.join(os.tmpdir(), filename);
@@ -29,13 +32,18 @@ app.post("/api/download", async (req, res) => {
 
   try {
     await youtubedl(url, options);
-    res.download(filePath, filename, err => {
-      if (err) console.error(err);
+
+    res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error("Download error:", err);
+        res.status(500).json({ error: "Download failed." });
+      }
+
       fs.unlink(filePath, () => {});
     });
   } catch (err) {
     console.error("Download error:", err);
-    res.status(500).json({ error: "Download failed" });
+    res.status(500).json({ error: "Download failed." });
   }
 });
 
